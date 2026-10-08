@@ -10,7 +10,7 @@ PostgreSQL 한 인스턴스 안에 `keycloak`과 `jauth` database를 만들고 �
 
 실제 Compose env, TLS certificate/key, PostgreSQL 데이터는 checkout 밖 `github/.suite-runtime/j-auth`에 둡니다. [`deploy/.env.example`](../deploy/.env.example)은 복사용 template이며 placeholder만 담습니다. I1 Compose env의 `KC_BOOTSTRAP_ADMIN_USERNAME/PASSWORD`는 최초 master realm 개발 설정입니다. I3 j-auth 애플리케이션 환경은 별도 범위이며 결정 5의 master realm 생성 자격은 checkout 밖 j-auth env에 둡니다. 이후 realm 생성용 `j-auth-realm-creator`는 그 자격으로 쓰는 별도 service account입니다. 고객 realm별 `j-auth-admin`·`j-auth-provisioner` secret은 Keycloak에서 읽어 메모리에만 보관하고 env나 database에 쓰지 않습니다.
 
-검사 명령은 실제 서비스와 연결하지 않습니다.
+다음 정적 검사 명령은 실제 서비스와 연결하지 않습니다.
 
 ```powershell
 node scripts/runtime-config.mjs
@@ -19,4 +19,8 @@ node --test tests/config/runtime-config.test.mjs
 node scripts/check.mjs --contracts-only
 ```
 
-이번 회사 노트북 작업에서는 OS package 설치, Docker/Compose 설정 적용·서비스 기동, 실제 PostgreSQL 계정·`PUBLIC CONNECT`·cross-database 권한, Keycloak 접속·FGAP를 검증하지 않았습니다. Node 테스트는 OS 임시 폴더의 synthetic env와 임시 TLS key pair만 사용합니다. VM에서 실제 database 권한 경계를 확인해야 합니다.
+초기 회사 노트북 작업에서는 OS package 설치, Docker/Compose 설정 적용·서비스 기동, 실제 PostgreSQL 계정·`PUBLIC CONNECT`·cross-database 권한, Keycloak 접속·FGAP를 검증하지 않았습니다. 해당 Node 테스트는 OS 임시 폴더의 synthetic env와 임시 TLS key pair만 사용합니다.
+
+## 2026-10-08 클라우드 검증
+
+이후 클라우드 `/workspace`에서 같은 고정 이미지로 Compose를 실행하고 실제 DB 격리·migration·재시작, realm import·token·FGAP·회원 API를 검증했습니다. runtime은 checkout 밖 `/workspace/.suite-runtime/j-auth`에 보관하며 Keycloak `58443`, management `59000`, PostgreSQL `54230`을 loopback에 bind했습니다. 전체 VM·Nginx·브라우저·BFF 검증은 아직 실행하지 않았습니다. 실행·재현 명령은 [서버 개발](server-development.md), 실제 결과와 한계는 [검증 기록](cloud-verification-2026-10-08.md)을 따릅니다.

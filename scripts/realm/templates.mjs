@@ -130,6 +130,10 @@ function roleMapper(name, protocolMapper, config) {
 
 function buildProtocolMappers({ tenantId, services, contracts }) {
   const mappers = [
+    roleMapper('subject', 'oidc-sub-mapper', {
+      'access.token.claim': 'true',
+      'introspection.token.claim': 'true',
+    }),
     roleMapper('tenant-claim', 'oidc-hardcoded-claim-mapper', {
       'claim.name': contracts.TOKEN_POLICY.claims.tenant,
       'claim.value': tenantId,
@@ -294,6 +298,23 @@ function makeUser(username, realmRole, environmentScope) {
   };
 }
 
+// The member contract collects only username/password. Keycloak's default
+// required email/name fields would add VERIFY_PROFILE at first login.
+function userProfileComponents() {
+  const profile = {
+    attributes: [
+      { name: 'username', validations: { length: { min: 1, max: 255 } },
+        permissions: { view: ['admin', 'user'], edit: ['admin', 'user'] }, multivalued: false },
+      ...['email', 'firstName', 'lastName'].map((name) => ({ name,
+        permissions: { view: ['admin', 'user'], edit: ['admin', 'user'] }, multivalued: false })),
+    ],
+  };
+  return { 'org.keycloak.userprofile.UserProfileProvider': [{
+    providerId: 'declarative-user-profile',
+    config: { 'kc.user.profile.config': [JSON.stringify(profile)] },
+  }] };
+}
+
 function customerRealm({ tenantId, selectedServiceIds, services, directGrants, users, contracts }) {
   const clientIds = contracts.CLIENT_IDS;
   const identityRoles = contracts.IDENTITY_ROLES;
@@ -334,6 +355,7 @@ function customerRealm({ tenantId, selectedServiceIds, services, directGrants, u
 
   return {
     realm: contracts.customerRealmName(tenantId),
+    components: userProfileComponents(),
     enabled: true,
     sslRequired: 'external',
     defaultSignatureAlgorithm: contracts.TOKEN_POLICY.algorithm,
@@ -400,6 +422,7 @@ function operatorRealm(contracts) {
 
   return {
     realm: 'operator',
+    components: userProfileComponents(),
     enabled: true,
     sslRequired: 'external',
     defaultSignatureAlgorithm: contracts.TOKEN_POLICY.algorithm,
@@ -786,6 +809,11 @@ export function validateRealmImportStructure(realm, contracts) {
     const preferredUsernameMapper = login.protocolMappers?.find(
       (mapper) => mapper.name === 'preferred-username',
     );
+    const subjectMapper = login.protocolMappers?.find((mapper) => mapper.name === 'subject');
+    if (subjectMapper?.protocolMapper !== 'oidc-sub-mapper' ||
+        subjectMapper.config?.['access.token.claim'] !== 'true') {
+      errors.push('Login client must map the subject into the access token.');
+    }
     if (preferredUsernameMapper?.protocolMapper !== 'oidc-usermodel-property-mapper' ||
         preferredUsernameMapper.config?.['user.attribute'] !== 'username' ||
         preferredUsernameMapper.config?.['claim.name'] !== 'preferred_username' ||

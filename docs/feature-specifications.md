@@ -1,6 +1,6 @@
 # j-auth 기능 명세
 
-작성일: 2026-10-08. 상태: **구현·인수 시험 전**. [기능 목록](features.md), [서비스 결정](decisions.md), [제품군 명세 기준](../../j-groupware/docs/suite-feature-specifications.md)을 따른다. 로그인은 Keycloak, 관리 API·구성·공유 카탈로그는 j-auth가 소유한다.
+작성일: 2026-10-08. 상태: **서버 기반·회원 API 구현 및 클라우드 범위 검증, 전체 인수 시험 미완료**. [기능 목록](features.md), [서비스 결정](decisions.md), [제품군 명세 기준](../../j-groupware/docs/suite-feature-specifications.md)을 따른다. 로그인은 Keycloak, 관리 API·구성·공유 카탈로그는 j-auth가 소유한다. 실행한 결과와 미실행 범위는 [클라우드 검증 기록](cloud-verification-2026-10-08.md)에서 구별한다.
 
 ## 입출력과 데이터
 

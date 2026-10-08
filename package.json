@@ -3,17 +3,38 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "engines": { "node": ">=22.18.0" },
-  "workspaces": ["apps/*", "packages/*"],
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "build": "node scripts/build-contracts.mjs",
+    "build": "npm run build:contracts && npm run build --workspace=@j-auth/token-verifier && npm run build --workspace=@j-auth/server",
     "build:contracts": "node scripts/build-contracts.mjs",
-    "check": "node scripts/check.mjs",
+    "check": "node scripts/check.mjs && npm run build --workspace=@j-auth/token-verifier && npm run build --workspace=@j-auth/server && npm run typecheck && npm run test && npm run lint && npm run format:check",
     "check:contracts": "node scripts/check.mjs --contracts-only",
-    "check:runtime-config": "node scripts/runtime-config.mjs"
+    "check:runtime-config": "node scripts/runtime-config.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "npm run build && node scripts/run-integration.mjs",
+    "start": "node apps/server/dist/main.js",
+    "db:migrate": "node apps/server/dist/db/migrate-cli.js",
+    "lint": "eslint apps packages/token-verifier tests/server tests/integration",
+    "format:check": "prettier --check apps packages/token-verifier tests/server tests/integration *.config.ts eslint.config.mjs scripts/prepare-cloud-test-runtime.mjs scripts/run-integration.mjs",
+    "test:integration:db": "npm run build:contracts && node scripts/run-integration.mjs tests/integration/database.test.ts",
+    "prepare:cloud-tests": "npm run build:contracts && node scripts/prepare-cloud-test-runtime.mjs"
   },
   "devDependencies": {
     "typescript": "5.9.3",
-    "js-yaml": "5.4.1"
+    "js-yaml": "5.4.1",
+    "@types/node": "22.20.4",
+    "@types/pg": "8.23.1",
+    "vitest": "4.1.0",
+    "eslint": "10.11.0",
+    "typescript-eslint": "8.71.0",
+    "prettier": "3.9.9",
+    "undici": "7.30.0"
   }
 }

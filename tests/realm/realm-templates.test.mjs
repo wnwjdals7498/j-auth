@@ -83,6 +83,10 @@ test('customer realm structure comes from shared contracts and keeps login grant
     `https://gw.${tenantId}.jgw.test${contracts.OIDC_PATHS.backchannelLogout}`);
   assert.equal(groupware.attributes['post.logout.redirect.uris'], `https://gw.${tenantId}.jgw.test/`);
   assert.deepEqual(realm.users, []);
+  const profile = JSON.parse(realm.components['org.keycloak.userprofile.UserProfileProvider'][0]
+    .config['kc.user.profile.config'][0]);
+  assert.deepEqual(profile.attributes.filter((attribute) => attribute.required), []);
+  assert.equal(groupware.protocolMappers.find((mapper) => mapper.name === 'subject')?.protocolMapper, 'oidc-sub-mapper');
 
   assert.deepEqual(Object.keys(realm.roles.client).sort(), services.map((service) => service.clientId).sort());
   for (const service of services) {
