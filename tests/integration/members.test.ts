@@ -116,6 +116,107 @@ describe('real HTTPS member management with restricted Keycloak credentials', ()
         }),
       },
     );
+  it('allows org-only profile reads without granting member management or exposing roles/credentials', async () => {
+    const editorName = `org-${randomUUID()}`,
+      editorPassword = randomBytes(24).toString('base64url');
+    const created = await request('/auth/members', 'POST', {
+      username: editorName,
+      password: editorPassword,
+      roles: ['org:manage'],
+    });
+    expect(created.status).toBe(201);
+    const editor = (await created.json()) as MemberResponse;
+    cleanup.add(editor.id);
+    const login = await runtime.fetch(
+      `${runtime.publicUrl}/realms/tenant-sample-a/protocol/openid-connect/token`,
+      {
+        method: 'POST',
+        body: new URLSearchParams({
+          client_id: 'j-groupware',
+          client_secret: requiredTestEnv(
+            'JGW_SAMPLE_A_J_GROUPWARE_CLIENT_SECRET',
+          ),
+          grant_type: 'password',
+          username: editorName,
+          password: editorPassword,
+          scope: 'openid',
+        }),
+      },
+    );
+    expect(login.status).toBe(200);
+    const token = ((await login.json()) as { access_token: string })
+      .access_token;
+    const target = decodeJwt(adminToken).sub!;
+    const profile = await request(
+      `/auth/members/${target}`,
+      'GET',
+      undefined,
+      token,
+    );
+    expect(profile.status).toBe(200);
+    expect(Object.keys(await profile.json()).sort()).toEqual([
+      'enabled',
+      'id',
+      'username',
+    ]);
+    expect(
+      (await request('/auth/members', 'GET', undefined, token)).status,
+    ).toBe(403);
+    expect(
+      (
+        await request(
+          '/auth/members',
+          'POST',
+          { username: 'org-cannot-create', password: 'unused', roles: [] },
+          token,
+        )
+      ).status,
+    ).toBe(403);
+    expect(
+      (await request(`/auth/members/${target}`, 'DELETE', undefined, token))
+        .status,
+    ).toBe(403);
+    expect(
+      (
+        await request(
+          `/auth/members/${target}/roles/board:write`,
+          'PUT',
+          undefined,
+          token,
+        )
+      ).status,
+    ).toBe(403);
+  });
+  it('rejects missing read role, foreign member id and another tenant service key on profile reads', async () => {
+    const target = decodeJwt(adminToken).sub!;
+    expect(
+      (await request(`/auth/members/${target}`, 'GET', undefined, lowerToken))
+        .status,
+    ).toBe(403);
+    expect((await request(`/auth/members/${otherId}`)).status).toBe(404);
+    expect(
+      (
+        await request(
+          `/auth/members/${target}`,
+          'GET',
+          undefined,
+          adminToken,
+          requiredTestEnv('JGW_SAMPLE_B_SERVICE_KEY'),
+        )
+      ).status,
+    ).toBe(401);
+    expect(
+      (
+        await request(
+          `/auth/members/${target}`,
+          'GET',
+          undefined,
+          adminToken,
+          '',
+        )
+      ).status,
+    ).toBe(401);
+  });
   it('creates a password-ready user with expanded functional roles', async () => {
     const response = await request('/auth/members', 'POST', {
       username,

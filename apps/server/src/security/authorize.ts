@@ -13,7 +13,7 @@ export function createAuthorizer(options: {
 }) {
   return async function authorize(
     headers: { authorization?: string; serviceKey?: unknown },
-    mode: 'member' | 'operator',
+    mode: 'member' | 'member-read' | 'operator',
   ): Promise<VerifiedIdentity> {
     const bearer = headers.authorization;
     if (
@@ -29,7 +29,7 @@ export function createAuthorizer(options: {
       const claim = decodeJwt(token).tenant;
       if (typeof claim !== 'string') throw new Error();
       tenantId = claim;
-      if (mode === 'member') assertCustomerTenantId(tenantId);
+      if (mode !== 'operator') assertCustomerTenantId(tenantId);
       else if (tenantId !== 'operator') throw new Error();
     } catch {
       throw unauthenticated();
@@ -59,12 +59,13 @@ export function createAuthorizer(options: {
         throw unauthenticated();
       throw unavailable();
     }
-    if (
-      !identity.roles.includes(
-        mode === 'operator' ? 'customer:write' : 'member:manage',
-      )
-    )
-      throw forbidden();
+    const roles =
+      mode === 'operator'
+        ? ['customer:write']
+        : mode === 'member-read'
+          ? ['member:manage', 'org:manage']
+          : ['member:manage'];
+    if (!roles.some((role) => identity.roles.includes(role))) throw forbidden();
     return identity;
   };
 }

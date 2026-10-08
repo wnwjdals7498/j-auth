@@ -77,6 +77,13 @@ export class MemberService {
       ).map((service) => service.serviceId),
     );
   }
+  async profile(
+    tenantId: string,
+    id: string,
+  ): Promise<Pick<MemberResponse, 'id' | 'username' | 'enabled'>> {
+    const user = await this.user(tenantId, id);
+    return { id: user.id, username: user.username, enabled: user.enabled };
+  }
 
   private async effectiveRoles(
     tenantId: string,

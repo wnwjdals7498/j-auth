@@ -46,10 +46,13 @@ export function createApp(options: {
     verifier: options.verifier,
     consoleKeyHashes: options.consoleKeyHashes,
   });
-  const memberIdentity = async (headers: {
-    authorization?: string | undefined;
-    [key: string]: unknown;
-  }) =>
+  const memberIdentity = async (
+    headers: {
+      authorization?: string | undefined;
+      [key: string]: unknown;
+    },
+    mode: 'member' | 'member-read' = 'member',
+  ) =>
     await authorize(
       {
         ...(headers.authorization
@@ -57,7 +60,7 @@ export function createApp(options: {
           : {}),
         serviceKey: headers[SERVICE_KEY_HEADER.toLowerCase()],
       },
-      'member',
+      mode,
     );
   const operatorIdentity = async (headers: {
     authorization?: string | undefined;
@@ -140,6 +143,22 @@ export function createApp(options: {
     const identity = await memberIdentity(request.headers);
     return { roles: await members.grantableRoles(identity.tenantId) };
   });
+  app.get<{ Params: { id: string } }>(
+    '/auth/members/:id',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: { id: idSchema },
+        },
+      },
+    },
+    async (request) => {
+      const identity = await memberIdentity(request.headers, 'member-read');
+      return await members.profile(identity.tenantId, request.params.id);
+    },
+  );
   app.get<{ Querystring: { cursor?: string } }>(
     '/auth/members',
     {
