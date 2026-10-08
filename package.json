@@ -1,0 +1,19 @@
+{
+  "name": "j-auth",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": { "node": ">=22.18.0" },
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "build": "node scripts/build-contracts.mjs",
+    "build:contracts": "node scripts/build-contracts.mjs",
+    "check": "node scripts/check.mjs",
+    "check:contracts": "node scripts/check.mjs --contracts-only",
+    "check:runtime-config": "node scripts/runtime-config.mjs"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "js-yaml": "5.4.1"
+  }
+}
