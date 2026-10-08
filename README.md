@@ -7,3 +7,5 @@ Keycloak 기반 인증과 회원·서비스 가입 관리 API를 위한 프로�
 설치 후 검사: `npm ci` → `npm run check`. 실제 서비스 검사는 `npm run test:integration`으로 분리합니다. [서버 실행·테스트](docs/server-development.md), [기반 검증 기록](docs/cloud-verification-2026-10-08.md), [가입·고객 생성 검증 기록](docs/cloud-provisioning-verification-2026-10-08.md), [기능 명세](docs/feature-specifications.md), [realm 생성](docs/realm-templates.md), [runtime 설정](docs/development-runtime.md).
 
 Part of the j-groupware suite. See `j-groupware/docs/architecture.md`.
+
+control plane allowlist: [프로필 예제](deploy/gateway/profile.example.json), [실제 Nginx·세션 검증](docs/cloud-ready-auth-verification-2026-10-08.md). `npm run test:gateway`는 준비된 클라우드 fixture에서 실행합니다.

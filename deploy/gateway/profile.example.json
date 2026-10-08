@@ -1,0 +1,14 @@
+{
+  "root": "/srv/jauth-gateway/runtime",
+  "hostname": "auth.jgw.test",
+  "listenPort": 54443,
+  "certificate": "/srv/jauth-gateway/tls/server.crt",
+  "privateKey": "/srv/jauth-gateway/tls/server.key",
+  "upstreamCa": "/srv/jauth-gateway/tls/ca.crt",
+  "keycloakPort": 58443,
+  "keycloakTlsName": "auth.jgw.test",
+  "authPort": 54231,
+  "authTlsName": "auth.jgw.test",
+  "loginRate": 10,
+  "loginBurst": 20
+}

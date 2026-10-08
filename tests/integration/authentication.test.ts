@@ -323,7 +323,20 @@ describe('real Keycloak and j-auth HTTPS authentication', () => {
     expect((await exchange('sample-c', cToken)).status).toBe(400);
   });
   it('rotates refresh tokens and ends the session when a used token is replayed', async () => {
+    const realm = await runtime.admin('/admin/realms/tenant-sample-a');
+    expect(realm.status).toBe(200);
+    expect(await realm.json()).toMatchObject({
+      accessTokenLifespan: 300,
+      ssoSessionIdleTimeout: 1800,
+      ssoSessionMaxLifespan: 28800,
+      revokeRefreshToken: true,
+      refreshTokenMaxReuse: 0,
+    });
     const session = await runtime.passwordToken('sample-a', 'a-admin');
+    expect(
+      decodeJwt(session.access_token).exp! -
+        decodeJwt(session.access_token).iat!,
+    ).toBe(300);
     const refresh = async (token: string) =>
       await runtime.fetch(
         `${runtime.publicUrl}/realms/tenant-sample-a/protocol/openid-connect/token`,

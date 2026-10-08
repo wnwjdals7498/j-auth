@@ -21,8 +21,9 @@
     "test:integration": "npm run build && node scripts/run-integration.mjs",
     "start": "node apps/server/dist/main.js",
     "db:migrate": "node apps/server/dist/db/migrate-cli.js",
-    "lint": "eslint apps packages/token-verifier tests/server tests/integration",
-    "format:check": "prettier --check apps packages/token-verifier tests/server tests/integration *.config.ts eslint.config.mjs scripts/prepare-cloud-test-runtime.mjs scripts/run-integration.mjs",
+    "lint": "eslint apps packages/token-verifier tests/server tests/integration deploy/gateway",
+    "format:check": "prettier --check apps packages/token-verifier tests/server tests/integration deploy/gateway *.config.ts eslint.config.mjs scripts/prepare-cloud-test-runtime.mjs scripts/run-integration.mjs",
+    "test:gateway": "npm run test:integration -- tests/integration/gateway.test.ts",
     "test:integration:db": "npm run build:contracts && node scripts/run-integration.mjs tests/integration/database.test.ts",
     "prepare:cloud-tests": "npm run build:contracts && node scripts/prepare-cloud-test-runtime.mjs"
   },
