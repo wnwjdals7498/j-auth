@@ -23,4 +23,4 @@ node scripts/check.mjs --contracts-only
 
 ## 2026-10-08 클라우드 검증
 
-이후 클라우드 `/workspace`에서 같은 고정 이미지로 Compose를 실행하고 실제 DB 격리·migration·재시작, realm import·token·FGAP·회원 API를 검증했습니다. runtime은 checkout 밖 `/workspace/.suite-runtime/j-auth`에 보관하며 Keycloak `58443`, management `59000`, PostgreSQL `54230`을 loopback에 bind했습니다. 전체 VM·Nginx·브라우저·BFF 검증은 아직 실행하지 않았습니다. 실행·재현 명령은 [서버 개발](server-development.md), 실제 결과와 한계는 [검증 기록](cloud-verification-2026-10-08.md)을 따릅니다.
+이후 클라우드 `/workspace`에서 같은 고정 이미지로 Compose를 실행하고 실제 DB 격리·migration·재시작, realm import·token·FGAP·회원 API를 검증했습니다. runtime은 checkout 밖 `/workspace/.suite-runtime/j-auth`에 보관하며 Keycloak `58443`, management `59000`, PostgreSQL `54230`을 loopback에 bind했습니다. 전체 VM·Nginx·브라우저·BFF 검증은 아직 실행하지 않았습니다. 실행·재현 명령은 [서버 개발](server-development.md), 실제 결과와 한계는 [기반 기록](cloud-verification-2026-10-08.md)과 [가입·고객 생성 후속 기록](cloud-provisioning-verification-2026-10-08.md)을 따릅니다.

@@ -24,6 +24,7 @@ interface Policy {
 export async function configureMemberAdmin(
   master: KeycloakClient,
   tenantId: string,
+  excludedServices: readonly string[] = [],
 ): Promise<void> {
   const realm = customerRealmName(tenantId);
   const prefix = `/admin/realms/${keycloakSegment(realm)}`;
@@ -79,7 +80,8 @@ export async function configureMemberAdmin(
     },
   ];
   for (const service of SERVICE_CATALOG.filter(
-    (service) => service.tenantService,
+    (service) =>
+      service.tenantService && !excludedServices.includes(service.serviceId),
   )) {
     const client = clients.find(
       (client) => client.clientId === service.clientId,

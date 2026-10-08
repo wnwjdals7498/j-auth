@@ -1,6 +1,8 @@
 # 클라우드 인증 구현·검증 기록
 
-2026-10-08, 클라우드 `/workspace`에서 수행했다. 시작 시 원격 main을 fetch하여 j-auth `35f53d7`, j-groupware `a61f58e`, j-customer-auth-db `9d239d2`와 체크아웃이 일치하고 기존 변경이 없는 것을 확인했다. j-auth·j-groupware의 작업 브랜치는 `codex/cloud-auth-foundation-20261008`이다. 회사 노트북 설치·기동은 하지 않았다. 원격 push·PR·merge·배포도 수행하지 않았다.
+2026-10-08, 클라우드 `/workspace`에서 수행했다. 시작 시 원격 main을 fetch하여 j-auth `35f53d7`, j-groupware `a61f58e`, j-customer-auth-db `9d239d2`와 체크아웃이 일치하고 기존 변경이 없는 것을 확인했다. j-auth·j-groupware의 작업 브랜치는 `codex/cloud-auth-foundation-20261008`이다. 회사 노트북 설치·기동은 하지 않았다. 최초 기반 작업 종료 시점에는 원격 push·PR·merge·배포를 수행하지 않았다.
+
+이 문서는 기반 커밋 `01a6365`의 정적/단위 48개·통합 36개 기록을 보존한다. 이후 사용자 승인으로 두 작업 브랜치를 푸시했고, [가입·고객 생성 후속 검증](cloud-provisioning-verification-2026-10-08.md)을 추가했다. 아래 미구현 목록은 최초 기반 단계의 상태다.
 
 ## 구현 범위
 

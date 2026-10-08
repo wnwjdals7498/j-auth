@@ -267,15 +267,19 @@ describe('real HTTPS member management with restricted Keycloak credentials', ()
     );
   });
   it('protects a different tenant admin and the service-account namespace', async () => {
-    expect(
-      (
-        await request('/auth/members', 'POST', {
-          username: `service-account-${randomUUID()}`,
-          password,
-          roles: [],
-        })
-      ).status,
-    ).toBe(400);
+    for (const username of [
+      `service-account-${randomUUID()}`,
+      ` SERVICE-ACCOUNT-${randomUUID()} `,
+    ])
+      expect(
+        (
+          await request('/auth/members', 'POST', {
+            username,
+            password,
+            roles: [],
+          })
+        ).status,
+      ).toBe(400);
     const created = await request('/auth/members', 'POST', {
       username: `guard-${randomUUID()}`,
       password,

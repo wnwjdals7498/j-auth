@@ -1,5 +1,12 @@
 import { assertCustomerTenantId, customerRealmName } from '@j-auth/contracts';
 import type { Pool } from 'pg';
+import { ApiError } from '../errors.js';
+
+export interface TenantClientMapping {
+  readonly clientId: string;
+  readonly keycloakId: string;
+  readonly roles: readonly { name: string; keycloakId: string }[];
+}
 
 export interface ActiveTenant {
   readonly tenantId: string;
@@ -9,6 +16,99 @@ export interface ActiveTenant {
 
 export class TenantStore {
   constructor(private readonly pool: Pool) {}
+
+  async withLock<T>(tenantId: string, operation: () => Promise<T>): Promise<T> {
+    assertCustomerTenantId(tenantId);
+    const client = await this.pool.connect();
+    let locked = false;
+    let discard: Error | undefined;
+    try {
+      const result = await client.query<{ locked: boolean }>(
+        "SELECT pg_try_advisory_lock(hashtextextended('j-auth-tenant:' || $1, 0)) AS locked",
+        [tenantId],
+      );
+      locked = result.rows[0]?.locked === true;
+      if (!locked)
+        throw new ApiError(
+          409,
+          'conflict',
+          'A tenant operation is in progress. Retry later.',
+        );
+      return await operation();
+    } finally {
+      if (locked) {
+        try {
+          await client.query(
+            "SELECT pg_advisory_unlock(hashtextextended('j-auth-tenant:' || $1, 0))",
+            [tenantId],
+          );
+        } catch {
+          discard = new Error('Tenant lock connection lost.');
+        }
+      }
+      client.release(discard);
+    }
+  }
+
+  async beginCreation(
+    tenantId: string,
+    username: string,
+  ): Promise<string | undefined> {
+    await this.reserve(tenantId);
+    const result = await this.pool.query<{ provisioning_id: string }>(
+      `UPDATE tenants SET status = 'creating', bootstrap_username = $2, updated_at = now()
+       WHERE tenant_id = $1 AND status <> 'active'
+         AND (bootstrap_username IS NULL OR bootstrap_username = $2)
+       RETURNING provisioning_id`,
+      [tenantId, username],
+    );
+    return result.rows[0]?.provisioning_id;
+  }
+
+  async canRotateKey(tenantId: string): Promise<boolean> {
+    const result = await this.pool.query<{ allowed: boolean }>(
+      `SELECT previous_key_expires_at IS NULL OR previous_key_expires_at <= now() AS allowed
+       FROM tenants WHERE tenant_id = $1 AND status = 'active'`,
+      [tenantId],
+    );
+    return result.rows[0]?.allowed === true;
+  }
+
+  async syncClients(
+    tenantId: string,
+    clients: readonly TenantClientMapping[],
+  ): Promise<void> {
+    assertCustomerTenantId(tenantId);
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const active = await client.query(
+        "SELECT 1 FROM tenants WHERE tenant_id = $1 AND status = 'active' FOR UPDATE",
+        [tenantId],
+      );
+      if (!active.rowCount) throw new Error('Tenant is not active.');
+      await client.query('DELETE FROM tenant_clients WHERE tenant_id = $1', [
+        tenantId,
+      ]);
+      for (const entry of clients) {
+        await client.query(
+          'INSERT INTO tenant_clients (tenant_id, client_id, keycloak_id) VALUES ($1, $2, $3)',
+          [tenantId, entry.clientId, entry.keycloakId],
+        );
+        for (const role of entry.roles)
+          await client.query(
+            'INSERT INTO tenant_client_roles (tenant_id, client_id, role_name, keycloak_id) VALUES ($1, $2, $3, $4)',
+            [tenantId, entry.clientId, role.name, role.keycloakId],
+          );
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
 
   async findActive(tenantId: string): Promise<ActiveTenant | undefined> {
     assertCustomerTenantId(tenantId);
@@ -57,11 +157,7 @@ export class TenantStore {
   async activate(
     tenantId: string,
     hash: string,
-    clients: readonly {
-      clientId: string;
-      keycloakId: string;
-      roles: readonly { name: string; keycloakId: string }[];
-    }[],
+    clients: readonly TenantClientMapping[],
   ): Promise<void> {
     assertCustomerTenantId(tenantId);
     if (!/^[a-f0-9]{64}$/.test(hash))

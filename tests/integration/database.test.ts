@@ -33,8 +33,33 @@ describe('real PostgreSQL control plane', () => {
     const applied = await runtime.pool.query(
       'SELECT name, checksum FROM schema_migrations',
     );
-    expect(applied.rows).toHaveLength(1);
-    expect(applied.rows[0].checksum).toMatch(/^[a-f0-9]{64}$/);
+    expect(applied.rows.map((r) => r.name).sort()).toEqual([
+      '001-tenant-control-plane.sql',
+      '002-provisioning-ownership.sql',
+    ]);
+    for (const row of applied.rows)
+      expect(row.checksum).toMatch(/^[a-f0-9]{64}$/);
+  });
+  it('rejects a changed applied migration checksum without applying more work', async () => {
+    const row = (
+      await runtime.pool.query(
+        'SELECT name, checksum FROM schema_migrations ORDER BY name LIMIT 1',
+      )
+    ).rows[0];
+    try {
+      await runtime.pool.query(
+        'UPDATE schema_migrations SET checksum = $2 WHERE name = $1',
+        [row.name, '0'.repeat(64)],
+      );
+      await expect(migrate(runtime.pool)).rejects.toThrow(
+        'applied migration was modified',
+      );
+    } finally {
+      await runtime.pool.query(
+        'UPDATE schema_migrations SET checksum = $2 WHERE name = $1',
+        [row.name, row.checksum],
+      );
+    }
   });
   it('requires the jauth identity and refuses superuser migrations', async () => {
     const admin = new Pool({

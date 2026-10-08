@@ -1,6 +1,6 @@
 # j-auth 기능 명세
 
-작성일: 2026-10-08. 상태: **서버 기반·회원 API 구현 및 클라우드 범위 검증, 전체 인수 시험 미완료**. [기능 목록](features.md), [서비스 결정](decisions.md), [제품군 명세 기준](../../j-groupware/docs/suite-feature-specifications.md)을 따른다. 로그인은 Keycloak, 관리 API·구성·공유 카탈로그는 j-auth가 소유한다. 실행한 결과와 미실행 범위는 [클라우드 검증 기록](cloud-verification-2026-10-08.md)에서 구별한다.
+작성일: 2026-10-08. 상태: **서버 기반·회원·가입·고객 생성/교체 API 구현 및 클라우드 범위 검증, 전체 인수 시험 미완료**. [기능 목록](features.md), [서비스 결정](decisions.md), [제품군 명세 기준](../../j-groupware/docs/suite-feature-specifications.md)을 따른다. 로그인은 Keycloak, 관리 API·구성·공유 카탈로그는 j-auth가 소유한다. 실행한 결과와 미실행 범위는 [기반 검증](cloud-verification-2026-10-08.md), [가입·고객 생성 후속 검증](cloud-provisioning-verification-2026-10-08.md)에서 구별한다.
 
 ## 입출력과 데이터
 
@@ -71,4 +71,4 @@
 
 ## 미정과 경계
 
-I2는 정확한 Keycloak 버전과 FGAP 실측 표, I3은 DTO·관리 API audience, I7은 최소 provisioner 권한, I8은 비밀 교체 병행 기간·부분 실패 응답을 고정한다. FGAP로 표현되지 않는 작업의 예외는 기존 결정 12가 허용한 범위 안에서 결과표에 명시한다. realm 삭제·비밀번호 변경 화면은 추가하지 않는다. 공통 관문은 [FS-U02·03](../../j-groupware/docs/suite-feature-specifications.md)을 따른다.
+I2는 Keycloak 26.8.0과 FGAP 실측 표, I3은 DTO·관리 API audience를 고정했다. I7 provisioner는 실측한 `manage-clients`·`manage-realm` 두 역할, I8은 서비스 키 300초 병행·기간 중 추가 교체 409·OIDC secret 즉시 교체·부분 실패 503을 구현 기준으로 삼는다. 전체 브라우저/BFF/VM 결과를 대신하지 않는다. FGAP로 표현되지 않는 작업의 예외는 기존 결정 12가 허용한 범위 안에서 결과표에 명시한다. realm 삭제·비밀번호 변경 화면은 추가하지 않는다. 공통 관문은 [FS-U02·03](../../j-groupware/docs/suite-feature-specifications.md)을 따른다.

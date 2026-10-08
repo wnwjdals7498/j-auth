@@ -175,7 +175,7 @@ export class MemberService {
     tenantId: string,
     input: { username: string; password: string; roles: readonly string[] },
   ): Promise<MemberResponse> {
-    if (input.username.startsWith('service-account-'))
+    if (input.username.trim().toLowerCase().startsWith('service-account-'))
       throw new ApiError(
         400,
         'invalid_input',

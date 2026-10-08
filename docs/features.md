@@ -1,6 +1,6 @@
 # j-auth 기능 목록
 
-j-auth가 제공해야 하는 기능 목록이다. 근거는 [`decisions.md`](decisions.md)의 결정 번호와 제품군 공통 결정(`j-groupware/docs/architecture.md`의 S 번호)이고, 담당 Item은 PMT 통합 project `j-groupware-suite`의 분류 `j-auth`다. 현재 구현 상태는 `j-groupware/docs/implementation-progress.json`, 실제 검증 범위는 [클라우드 검증 기록](cloud-verification-2026-10-08.md)을 따른다.
+j-auth가 제공해야 하는 기능 목록이다. 근거는 [`decisions.md`](decisions.md)의 결정 번호와 제품군 공통 결정(`j-groupware/docs/architecture.md`의 S 번호)이고, 담당 Item은 PMT 통합 project `j-groupware-suite`의 분류 `j-auth`다. 현재 구현 상태는 `j-groupware/docs/implementation-progress.json`, 실제 검증 범위는 [기반 검증](cloud-verification-2026-10-08.md)과 [가입·고객 생성 후속 검증](cloud-provisioning-verification-2026-10-08.md)을 따른다.
 
 작성일: 2026-10-07
 

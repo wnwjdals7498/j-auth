@@ -15,7 +15,7 @@ node scripts/realm/generate.mjs sample-plan operator
 
 ## FGAP와 검증 경계
 
-`adminPermissionsEnabled: true`만으로 권한 설정이 끝난 것은 아닙니다. 생성 계획과 `apps/server/src/keycloak/admin-permissions.ts`의 설정 함수가 실제 UUID별 FGAP v2 정책을 적용합니다. 클라우드의 실제 Keycloak 26.8.0에서 사용자 생성·조회·활성 상태 변경·세션 종료·삭제와 허용 role 매핑을 확인했습니다. client metadata 조회는 허용하지만 secret 조회, `member:manage`·`tenant:admin`·`manage-users` 매핑은 거절합니다. `j-auth-admin`에 `manage-users`나 `view-clients` 같은 광역 realm-management 역할을 주지 않습니다. 전체 결과 표는 [클라우드 검증 기록](cloud-verification-2026-10-08.md)에 있습니다. provisioner 최소 권한과 공개 tenant 생성 API는 후속 구현입니다.
+`adminPermissionsEnabled: true`만으로 권한 설정이 끝난 것은 아닙니다. 생성 계획과 `apps/server/src/keycloak/admin-permissions.ts`의 설정 함수가 실제 UUID별 FGAP v2 정책을 적용합니다. 클라우드의 실제 Keycloak 26.8.0에서 사용자 생성·조회·활성 상태 변경·세션 종료·삭제와 허용 role 매핑을 확인했습니다. client metadata 조회는 허용하지만 secret 조회, `member:manage`·`tenant:admin`·`manage-users` 매핑은 거절합니다. `j-auth-admin`에 `manage-users`나 `view-clients` 같은 광역 realm-management 역할을 주지 않습니다. [기반 결과 표](cloud-verification-2026-10-08.md)와 [후속 가입·고객 생성 결과](cloud-provisioning-verification-2026-10-08.md)를 구별합니다. CLI plan은 대상 realm에 적용하지 않은 요청 계획이며 기존 계획의 provisioner 3역할과 달리 서버는 실측한 2역할만 사용합니다.
 
 초기 회사 노트북 작업은 JSON·placeholder·mapper의 Node 검사까지만 수행했습니다. 이후 클라우드에서 4개 realm import, 실제 claim 발급, token exchange, refresh 재사용, FGAP 및 회원 API를 검증했습니다. 회사 노트북 설치·기동 제한은 그대로 유지합니다. 로그인 테마·브라우저 PKCE·BFF 수신과 VM 검증은 미실행입니다.
 

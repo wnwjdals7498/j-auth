@@ -20,6 +20,12 @@ async function main(): Promise<void> {
       readFile(config.tlsCertificate),
       readFile(config.tlsKey),
     ]);
+    const creator = new KeycloakClient({
+      baseUrl: config.keycloakAdminUrl,
+      realm: 'master',
+      clientId: CLIENT_IDS.realmCreator,
+      secret: async () => config.realmCreatorSecret,
+    });
     const app = createApp({
       pool,
       verifier: createTokenVerifier({ publicUrl: config.keycloakPublicUrl }),
@@ -27,13 +33,9 @@ async function main(): Promise<void> {
       credentials: new RealmCredentials({
         tenants: new TenantStore(pool),
         baseUrl: config.keycloakAdminUrl,
-        master: new KeycloakClient({
-          baseUrl: config.keycloakAdminUrl,
-          realm: 'master',
-          clientId: CLIENT_IDS.realmCreator,
-          secret: async () => config.realmCreatorSecret,
-        }),
+        master: creator,
       }),
+      realmCreator: creator,
       https: { cert, key, minVersion: 'TLSv1.2' },
       logger: {
         level: 'info',

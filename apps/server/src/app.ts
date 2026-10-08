@@ -2,24 +2,31 @@ import Fastify, { LogController } from 'fastify';
 import type { FastifyServerOptions, FastifyError } from 'fastify';
 import type { ServerOptions as HttpsOptions } from 'node:https';
 import { SERVICE_KEY_HEADER } from '@j-auth/contracts';
-import type { CreateMemberRequest } from '@j-auth/contracts';
+import type {
+  CreateMemberRequest,
+  CreateTenantRequest,
+} from '@j-auth/contracts';
 import type { TokenVerifier } from '@j-auth/token-verifier';
 import type { Pool } from 'pg';
 import { TenantStore } from './db/tenants.js';
 import { ApiError, unavailable } from './errors.js';
 import { createAuthorizer } from './security/authorize.js';
-import type { RealmCredentials } from './keycloak/client.js';
+import type { RealmCredentials, KeycloakClient } from './keycloak/client.js';
 import { MemberService } from './keycloak/members.js';
+import { SubscriptionService } from './keycloak/subscriptions.js';
+import { TenantProvisioning } from './keycloak/provisioning.js';
 
 export function createApp(options: {
   pool: Pool;
   verifier: TokenVerifier;
   consoleKeyHashes: readonly string[];
   credentials: RealmCredentials;
+  realmCreator?: KeycloakClient;
   https?: HttpsOptions;
   logger?: FastifyServerOptions['logger'];
 }) {
   const app = Fastify({
+    ajv: { customOptions: { removeAdditional: false } },
     ...(options.https ? { https: options.https } : {}),
     logger: options.logger ?? false,
     logController: new LogController({ disableRequestLogging: true }),
@@ -30,6 +37,10 @@ export function createApp(options: {
   });
   const tenants = new TenantStore(options.pool);
   const members = new MemberService(tenants, options.credentials);
+  const subscriptions = new SubscriptionService(tenants, options.credentials);
+  const provisioning = options.realmCreator
+    ? new TenantProvisioning(tenants, options.realmCreator)
+    : undefined;
   const authorize = createAuthorizer({
     tenants,
     verifier: options.verifier,
@@ -48,6 +59,28 @@ export function createApp(options: {
       },
       'member',
     );
+  const operatorIdentity = async (headers: {
+    authorization?: string | undefined;
+    [key: string]: unknown;
+  }) =>
+    await authorize(
+      {
+        ...(headers.authorization
+          ? { authorization: headers.authorization }
+          : {}),
+        serviceKey: headers[SERVICE_KEY_HEADER.toLowerCase()],
+      },
+      'operator',
+    );
+  const tenantSchema = {
+    type: 'string',
+    pattern: '^(?!operator$)[a-z][a-z0-9-]{2,30}$',
+  };
+  const tenantParams = {
+    type: 'object',
+    required: ['tenant'],
+    properties: { tenant: tenantSchema },
+  };
   const idSchema = {
     type: 'string',
     minLength: 1,
@@ -205,6 +238,78 @@ export function createApp(options: {
         identity.subject,
       );
       return reply.code(204).send();
+    },
+  );
+  app.get<{ Params: { tenant: string } }>(
+    '/auth/tenants/:tenant/services',
+    {
+      schema: { params: tenantParams },
+    },
+    async (request) => {
+      await operatorIdentity(request.headers);
+      return await subscriptions.list(request.params.tenant);
+    },
+  );
+  for (const method of ['PUT', 'DELETE'] as const) {
+    app.route<{ Params: { tenant: string; service: string } }>({
+      method,
+      url: '/auth/tenants/:tenant/services/:service',
+      schema: {
+        params: {
+          ...tenantParams,
+          required: ['tenant', 'service'],
+          properties: {
+            ...tenantParams.properties,
+            service: { type: 'string', maxLength: 128 },
+          },
+        },
+      },
+      handler: async (request) => {
+        await operatorIdentity(request.headers);
+        return await subscriptions.change(
+          request.params.tenant,
+          request.params.service,
+          method === 'PUT',
+        );
+      },
+    });
+  }
+  app.post<{ Body: CreateTenantRequest }>(
+    '/auth/tenants',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['tenantId', 'adminUsername', 'adminPassword'],
+          properties: {
+            tenantId: tenantSchema,
+            adminUsername: {
+              type: 'string',
+              minLength: 1,
+              maxLength: 255,
+              pattern: '\\S',
+            },
+            adminPassword: { type: 'string', minLength: 1, maxLength: 1024 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      await operatorIdentity(request.headers);
+      if (!provisioning) throw unavailable();
+      return reply.code(201).send(await provisioning.create(request.body));
+    },
+  );
+  app.post<{ Params: { tenant: string } }>(
+    '/auth/tenants/:tenant/rotate-secrets',
+    {
+      schema: { params: tenantParams },
+    },
+    async (request) => {
+      await operatorIdentity(request.headers);
+      if (!provisioning) throw unavailable();
+      return await provisioning.rotate(request.params.tenant);
     },
   );
   return app;

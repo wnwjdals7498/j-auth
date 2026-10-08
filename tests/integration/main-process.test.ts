@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { randomUUID, randomBytes } from 'node:crypto';
 import { integrationRuntime, requiredTestEnv } from './runtime.js';
 
 describe('compiled server lifecycle', () => {
@@ -8,6 +9,11 @@ describe('compiled server lifecycle', () => {
     const runtime = await integrationRuntime();
     const token = (await runtime.passwordToken('sample-a', 'a-admin'))
       .access_token;
+    const operator = (await runtime.passwordToken('operator', 'op-admin'))
+      .access_token;
+    const tenantId = `process-${randomUUID().slice(0, 8)}`;
+    const password = randomBytes(24).toString('base64url');
+    const sensitive = [token, operator, password];
     try {
       for (let attempt = 0; attempt < 2; attempt++) {
         const child = spawn(
@@ -71,9 +77,55 @@ describe('compiled server lifecycle', () => {
             { headers: { Authorization: `Bearer ${token}` } },
           );
           expect(denied.status).toBe(401);
+          const tenant = await runtime.fetch(
+            'https://jauth.jgw.test:54231/auth/tenants',
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${operator}`,
+                'X-JGW-Service-Key': requiredTestEnv(
+                  'JAUTH_CONSOLE_SERVICE_KEY',
+                ),
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                tenantId,
+                adminUsername: 'owner',
+                adminPassword: password,
+              }),
+            },
+          );
+          expect(tenant.status).toBe(attempt === 0 ? 201 : 409);
+          if (attempt === 0) {
+            const created = (await tenant.json()) as {
+              clientSecret: string;
+              serviceKey: string;
+            };
+            sensitive.push(created.clientSecret, created.serviceKey);
+            const rotate = await runtime.fetch(
+              `https://jauth.jgw.test:54231/auth/tenants/${tenantId}/rotate-secrets`,
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${operator}`,
+                  'X-JGW-Service-Key': requiredTestEnv(
+                    'JAUTH_CONSOLE_SERVICE_KEY',
+                  ),
+                },
+              },
+            );
+            expect(rotate.status).toBe(200);
+            const changed = (await rotate.json()) as {
+              clientSecret: string;
+              serviceKey: string;
+            };
+            sensitive.push(changed.clientSecret, changed.serviceKey);
+          }
           child.kill('SIGTERM');
           expect(await exit).toBe(0);
           expect(logs.includes(token)).toBe(false);
+          for (const value of sensitive)
+            expect(logs.includes(value)).toBe(false);
           for (const name of [
             'JAUTH_DB_PASSWORD',
             'JGW_SAMPLE_A_SERVICE_KEY',
@@ -89,6 +141,12 @@ describe('compiled server lifecycle', () => {
         }
       }
     } finally {
+      await runtime.admin(`/admin/realms/tenant-${tenantId}`, {
+        method: 'DELETE',
+      });
+      await runtime.pool.query('DELETE FROM tenants WHERE tenant_id = $1', [
+        tenantId,
+      ]);
       await runtime.close();
     }
   });
