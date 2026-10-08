@@ -274,12 +274,11 @@ function customerScopeMappings({ loginClientId, services, identityRoles }) {
         roles: [identityRoles.tenantAdmin, identityRoles.tenantMember],
       },
     ],
-    clientScopeMappings: {
-      [loginClientId]: services.map((service) => ({
-        client: service.clientId,
-        roles: service.roles.map((role) => role.name),
-      })),
-    },
+    // Keycloak keys identify the role owner; each entry names its scope consumer.
+    clientScopeMappings: Object.fromEntries(services.map((service) => [
+      service.clientId,
+      [{ client: loginClientId, roles: service.roles.map((role) => role.name) }],
+    ])),
   };
 }
 

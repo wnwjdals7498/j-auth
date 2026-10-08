@@ -115,10 +115,10 @@ test('customer realm structure comes from shared contracts and keeps login grant
   assert.deepEqual(mappedAudiences, services.map((service) => service.audience));
   assert.equal(groupware.protocolMappers.find((mapper) => mapper.name === 'tenant-claim')
     .config['claim.name'], contracts.TOKEN_POLICY.claims.tenant);
-  assert.deepEqual(realm.clientScopeMappings[contracts.CLIENT_IDS.groupware], services.map((service) => ({
-    client: service.clientId,
-    roles: service.roles.map((role) => role.name),
-  })));
+  assert.deepEqual(realm.clientScopeMappings, Object.fromEntries(services.map((service) => [
+    service.clientId,
+    [{ client: contracts.CLIENT_IDS.groupware, roles: service.roles.map((role) => role.name) }],
+  ])));
 
   const roleHolders = services
     .filter((service) => service.clientId !== contracts.CLIENT_IDS.groupware)

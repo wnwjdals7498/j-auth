@@ -1,4 +1,8 @@
-import { assertCustomerTenantId, customerRealmName } from '@j-auth/contracts';
+import {
+  assertCustomerTenantId,
+  customerRealmName,
+  SERVICE_CATALOG,
+} from '@j-auth/contracts';
 import type { Pool } from 'pg';
 import { ApiError } from '../errors.js';
 
@@ -226,13 +230,23 @@ export class TenantStore {
     role: string,
   ): Promise<{ clientId: string; roleId: string } | undefined> {
     assertCustomerTenantId(tenantId);
+    // Old imports can contain same-named roles on a different client. Only the
+    // catalog's role owner is eligible; never choose an arbitrary matching row.
+    const service = SERVICE_CATALOG.find(
+      (entry) =>
+        entry.tenantService &&
+        entry.roles.some(
+          (definition) => definition.name === role && definition.grantable,
+        ),
+    );
+    if (!service) return undefined;
     const result = await this.pool.query<{
       client_id: string;
       role_id: string;
     }>(
       `SELECT c.keycloak_id AS client_id, r.keycloak_id AS role_id FROM tenant_client_roles r
-       JOIN tenant_clients c USING (tenant_id, client_id) WHERE r.tenant_id = $1 AND r.role_name = $2`,
-      [tenantId, role],
+       JOIN tenant_clients c USING (tenant_id, client_id) WHERE r.tenant_id = $1 AND r.role_name = $2 AND r.client_id = $3`,
+      [tenantId, role, service.clientId],
     );
     const row = result.rows[0];
     return row ? { clientId: row.client_id, roleId: row.role_id } : undefined;
