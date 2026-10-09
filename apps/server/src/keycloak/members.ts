@@ -77,6 +77,57 @@ export class MemberService {
       ).map((service) => service.serviceId),
     );
   }
+  private async canAssignTalk(tenantId: string, id: string): Promise<boolean> {
+    if (!(await this.tenants.serviceIds(tenantId)).includes('j-talk'))
+      return false;
+    const internalId = await this.tenants.clientId(tenantId, 'j-talk');
+    if (!internalId) throw unavailable();
+    const { client, prefix } = this.context(tenantId);
+    const roles = await this.read<Role[]>(
+      client,
+      `${prefix}/users/${keycloakSegment(id)}/role-mappings/clients/${keycloakSegment(internalId)}/composite`,
+    );
+    return roles.some((role) => role.name === 'talk:write');
+  }
+  async talkAssignee(
+    tenantId: string,
+    id: string,
+  ): Promise<{ id: string; username: string }> {
+    const user = await this.user(tenantId, id);
+    if (!user.enabled || !(await this.canAssignTalk(tenantId, id)))
+      throw new ApiError(404, 'not_found', 'Assignee is unavailable.');
+    return { id: user.id, username: user.username };
+  }
+  async requireTalkCaller(tenantId: string, id: string): Promise<void> {
+    try {
+      await this.talkAssignee(tenantId, id);
+    } catch (error) {
+      if (error instanceof ApiError && error.statusCode === 404)
+        throw forbidden();
+      throw error;
+    }
+  }
+  async talkAssignees(tenantId: string, offset: number) {
+    const { client, prefix } = this.context(tenantId);
+    const users = await this.read<KcUser[]>(
+      client,
+      `${prefix}/users?first=${offset}&max=50&briefRepresentation=true`,
+    );
+    const items: { id: string; username: string }[] = [];
+    for (const user of users) {
+      if (
+        user.enabled &&
+        !user.serviceAccountClientId &&
+        !user.username.startsWith('service-account-') &&
+        (await this.canAssignTalk(tenantId, user.id))
+      )
+        items.push({ id: user.id, username: user.username });
+    }
+    return {
+      items,
+      nextCursor: users.length === 50 ? String(offset + 50) : null,
+    };
+  }
   async profile(
     tenantId: string,
     id: string,

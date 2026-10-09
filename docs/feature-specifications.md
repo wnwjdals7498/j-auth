@@ -9,6 +9,7 @@
 | tenant 등록 | `tenantId`는 `^[a-z][a-z0-9-]{2,30}$`; `operator`는 예약값이다. 고객 realm은 `tenant-<tenantId>`다. 상태는 생성 중·사용·실패, Keycloak 내부 client/role id와 서비스 키 해시를 저장한다. |
 | 회원 | Keycloak id, username, 활성 여부, effective roles. 추가 입력은 username·영구 초기 비밀번호·선택 role이다. 비밀번호 원문은 Keycloak 호출 뒤 저장·로그에서 제외한다. |
 | 회원 관리 인증 | 원래 고객 사용자 Bearer(`azp=j-groupware`, 해당 tenant)와 그 tenant 서비스 키. `member:manage`가 필수다. 관리 API 수신자가 j-auth라고 임의의 `aud=j-auth`를 새로 만들지 않고 I3 계약에서 기존 발급 audience와 검증값을 일치시킨다. |
+| 상담 배정 후보 조회 | `GET /auth/talk/assignees?cursor`와 `/:id`는 같은 기존 Bearer·tenant 서비스 키에 `talk:write` 및 현재 활성·effective role 검사를 적용한다. 요청자와 후보는 같은 tenant이며 응답은 `id,username`만이다. 관리 목록/role/CRUD 권한은 부여하지 않는다. 매 배정 재확인으로 비활성·권한 회수·타 tenant 대상은 후보에서 제외한다. |
 | 운영사 관리 인증 | 운영사 realm Bearer(`azp=j-console`, `aud`에 `j-console`), `customer:write`, 콘솔 서비스 키. path tenant는 관리 대상이고 호출자의 tenant로 위장하지 않는다. |
 | 카탈로그 | service id, role client id/aud, 기능 role, 쓰기→읽기 포함, 부여 가능 role. 신분 role과 `member:manage`는 하위 회원에게 부여할 수 없다. |
 | 비밀값 | tenant 서비스 키는 해시만, master 자격·DB 접속·콘솔 키 해시는 env. `j-auth-admin`·`j-auth-provisioner` secret은 필요한 때 Keycloak에서 읽어 메모리에만 둔다. |

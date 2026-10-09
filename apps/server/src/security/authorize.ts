@@ -13,7 +13,7 @@ export function createAuthorizer(options: {
 }) {
   return async function authorize(
     headers: { authorization?: string; serviceKey?: unknown },
-    mode: 'member' | 'member-read' | 'operator',
+    mode: 'member' | 'member-read' | 'talk-write' | 'operator',
   ): Promise<VerifiedIdentity> {
     const bearer = headers.authorization;
     if (
@@ -62,9 +62,11 @@ export function createAuthorizer(options: {
     const roles =
       mode === 'operator'
         ? ['customer:write']
-        : mode === 'member-read'
-          ? ['member:manage', 'org:manage']
-          : ['member:manage'];
+        : mode === 'talk-write'
+          ? ['talk:write']
+          : mode === 'member-read'
+            ? ['member:manage', 'org:manage']
+            : ['member:manage'];
     if (!roles.some((role) => identity.roles.includes(role))) throw forbidden();
     return identity;
   };

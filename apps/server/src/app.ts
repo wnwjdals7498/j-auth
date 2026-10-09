@@ -51,7 +51,7 @@ export function createApp(options: {
       authorization?: string | undefined;
       [key: string]: unknown;
     },
-    mode: 'member' | 'member-read' = 'member',
+    mode: 'member' | 'member-read' | 'talk-write' = 'member',
   ) =>
     await authorize(
       {
@@ -139,6 +139,53 @@ export function createApp(options: {
     }
     return { status: 'ok' };
   });
+  app.get<{ Querystring: { cursor?: string } }>(
+    '/auth/talk/assignees',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            cursor: { type: 'string', pattern: '^(0|[1-9][0-9]{0,5})$' },
+          },
+        },
+      },
+    },
+    async (request) => {
+      const identity = await memberIdentity(request.headers, 'talk-write');
+      await members.requireTalkCaller(identity.tenantId, identity.subject);
+      return members.talkAssignees(
+        identity.tenantId,
+        Number(request.query.cursor ?? '0'),
+      );
+    },
+  );
+  app.get<{ Params: { id: string } }>(
+    '/auth/talk/assignees/:id',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id'],
+          properties: {
+            id: {
+              type: 'string',
+              pattern:
+                '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+            },
+          },
+        },
+        querystring: { type: 'object', additionalProperties: false },
+      },
+    },
+    async (request) => {
+      const identity = await memberIdentity(request.headers, 'talk-write');
+      await members.requireTalkCaller(identity.tenantId, identity.subject);
+      return members.talkAssignee(identity.tenantId, request.params.id);
+    },
+  );
   app.get('/auth/members/grantable-roles', async (request) => {
     const identity = await memberIdentity(request.headers);
     return { roles: await members.grantableRoles(identity.tenantId) };

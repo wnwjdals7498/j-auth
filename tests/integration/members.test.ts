@@ -217,6 +217,150 @@ describe('real HTTPS member management with restricted Keycloak credentials', ()
       ).status,
     ).toBe(401);
   });
+  it('exposes only active talk writers to talk-only callers and rechecks role/activation changes', async () => {
+    const writerName = `talk-${randomUUID()}`,
+      writerPassword = randomBytes(24).toString('base64url');
+    const created = await request('/auth/members', 'POST', {
+      username: writerName,
+      password: writerPassword,
+      roles: ['talk:write'],
+    });
+    expect(created.status).toBe(201);
+    const writer = (await created.json()) as MemberResponse;
+    cleanup.add(writer.id);
+    const login = await runtime.fetch(
+      `${runtime.publicUrl}/realms/tenant-sample-a/protocol/openid-connect/token`,
+      {
+        method: 'POST',
+        body: new URLSearchParams({
+          client_id: 'j-groupware',
+          client_secret: requiredTestEnv(
+            'JGW_SAMPLE_A_J_GROUPWARE_CLIENT_SECRET',
+          ),
+          grant_type: 'password',
+          username: writerName,
+          password: writerPassword,
+          scope: 'openid',
+        }),
+      },
+    );
+    expect(login.status).toBe(200);
+    const token = ((await login.json()) as { access_token: string })
+      .access_token;
+    const list = await request('/auth/talk/assignees', 'GET', undefined, token);
+    expect(list.status).toBe(200);
+    const page = (await list.json()) as {
+      items: { id: string; username: string }[];
+      nextCursor: string | null;
+    };
+    expect(page.items).toContainEqual({ id: writer.id, username: writerName });
+    expect(
+      page.items.every(
+        (item) => Object.keys(item).sort().join(',') === 'id,username',
+      ),
+    ).toBe(true);
+    for (const path of [
+      '/auth/members',
+      `/auth/members/${writer.id}`,
+      '/auth/members/grantable-roles',
+    ])
+      expect((await request(path, 'GET', undefined, token)).status).toBe(403);
+    expect(
+      (
+        await request(
+          '/auth/members',
+          'POST',
+          { username: 'forbidden', password: 'unused', roles: [] },
+          token,
+        )
+      ).status,
+    ).toBe(403);
+    expect(
+      (
+        await request(
+          `/auth/talk/assignees/${writer.id}`,
+          'GET',
+          undefined,
+          token,
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await request(
+          `/auth/talk/assignees/${otherId}`,
+          'GET',
+          undefined,
+          token,
+        )
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await request(
+          `/auth/talk/assignees/${decodeJwt(lowerToken).sub!}`,
+          'GET',
+          undefined,
+          token,
+        )
+      ).status,
+    ).toBe(404);
+    expect(
+      (await request('/auth/talk/assignees', 'GET', undefined, lowerToken))
+        .status,
+    ).toBe(403);
+    expect(
+      (
+        await request(
+          '/auth/talk/assignees?tenant=sample-b',
+          'GET',
+          undefined,
+          token,
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await request(
+          '/auth/talk/assignees',
+          'GET',
+          undefined,
+          token,
+          requiredTestEnv('JGW_SAMPLE_B_SERVICE_KEY'),
+        )
+      ).status,
+    ).toBe(401);
+    const disabled = await runtime.admin(
+      `/admin/realms/tenant-sample-a/users/${writer.id}`,
+      { method: 'PUT', body: JSON.stringify({ enabled: false }) },
+    );
+    expect(disabled.status).toBe(204);
+    expect((await request(`/auth/talk/assignees/${writer.id}`)).status).toBe(
+      404,
+    );
+    expect(
+      (await request('/auth/talk/assignees', 'GET', undefined, token)).status,
+    ).toBe(403);
+    expect(
+      (
+        await runtime.admin(
+          `/admin/realms/tenant-sample-a/users/${writer.id}`,
+          { method: 'PUT', body: JSON.stringify({ enabled: true }) },
+        )
+      ).status,
+    ).toBe(204);
+    expect(
+      (await request(`/auth/members/${writer.id}/roles/talk:write`, 'DELETE'))
+        .status,
+    ).toBe(200);
+    // JWT remains signature-valid, but current effective roles are authoritative for assignment.
+    expect(
+      (await request('/auth/talk/assignees', 'GET', undefined, token)).status,
+    ).toBe(403);
+    expect((await request(`/auth/talk/assignees/${writer.id}`)).status).toBe(
+      404,
+    );
+  });
   it('creates a password-ready user with expanded functional roles', async () => {
     const response = await request('/auth/members', 'POST', {
       username,
