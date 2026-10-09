@@ -70,3 +70,7 @@ services:
         source: "${J_AUTH_RUNTIME_DIR:?Set an absolute runtime directory outside the checkout}/tls"
         target: /opt/keycloak/conf/tls
         read_only: true
+      - type: bind
+        source: ../themes/jgw
+        target: /opt/keycloak/themes/jgw
+        read_only: true
